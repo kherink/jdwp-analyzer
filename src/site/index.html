@@ -1,0 +1,164 @@
+<h1>ZeroEffort JDWP Analyzer Project home page </h1>
+
+<H1><A HREF="JDWPAnalyzerScreen.png"><IMG SRC="JDWPAnalyzerScreenSmall.png" ALT="screen shot"></A></H1>
+
+<h3>Project Mission:</h3>  
+<p>
+The main goal of this tool is to make it easier to analyze debugger related issues.
+</p>
+
+<h3>Updates:</h3>
+<p>
+<i>Last modified: 2009-02-26</i>
+</p>
+<p>
+Fixed an issue with packet details not showing up.
+</p>
+<h3>Project Description:</h3>  
+<p>
+The ZeroEffort JDWP Analyzer is a GUI tool for monitoring JDWP packets during a Java debugging session. It can be used to help with the following tasks:
+</p><p>
+</p><ul>
+<li> Track down problems with the debuggee VM 
+</li>
+<li> Track down problems with the debugger
+</li>
+<li> Monitor the amount of traffic during debug session
+</li>
+</ul>
+<p>
+It is compliant with Java 1.5 JDWP
+</p>
+<p>
+</p>
+
+<h3>Running standalone:</h3>
+<p>
+<strong>1.</strong> Run the JDWP Analyzer: 
+</p><p>
+</p><p>
+java -jar JDWPAnalyzer.jar <code><b>inport outaddress indelay outdelay [log_dir]</b></code>  
+</p><p>
+      <code><b>inport</b></code>  = the port to which debugger connects
+</p><p>
+      <code><b>outaddress</b></code>  = the address (as host:port) on which the debuggee VM is waiting for debug connection.  Only the port is required for localhost VMs.
+</p><p>
+      <code><b>indelay</b></code>  = amount of time in MS to wait before passing a packet to the debuggee VM
+</p><p>
+      <code><b>outdelay</b></code> = amount of time in MS to wait before passing a packet to the debugger
+</p><p>
+      <code><b>log_dir</b></code> = OPTIONAL log directory path for writing debugging session JDWP packets
+</p><p>
+<strong>2.</strong> Execute the remote VM in debug mode as a suspended server (in this example we use WTK) on the same port as the <code><b>outaddress</b></code> specified in the JDWP Analyzer:
+</p><p>
+</p><pre>WTK2.2/bin/emulator -classpath MobileApplication.jar -Xdebug -Xrunjdwp:transport=dt_socket,address=6666,server=y  -Xdescriptor:MobileApplication.jad
+</pre>
+<p>
+<strong>3.</strong> Open your favorite debugger and attach it via a socket connection to the <code><b>inport</b></code>
+specified for the JDWP analyzer. As soon as the analyzer recieves a
+connection from the debugger it will connect to the remove VM using the
+<code><b>outaddress</b></code> specified and keep track of the traffic.
+</p>
+<p></p>
+<h3>To replay a debugging session from log: </h3>
+<p>
+java -jar JDWPAnalyzer.jar <code><b>log_dir</b></code> 
+</p><p>
+      <code><b>log_dir</b></code> = log directory path for replaying a debugging session
+</p><p>
+
+
+<h3>Running as an ant task from NetBeans: </h3>
+The task can be used with the following attributes: 
+<p>
+</p><ul>
+<li> inport - specifies number of the port on which the jdwp analyzer
+will wait for debugger, if omitted then a free port is found and it's
+number is stored in the 'inportproperty' attribue
+</li>
+<li> outaddress - specifies the host and port to which the jdwp analyzer
+will connect once it receives debugger connection (usually the address at
+which the remote VM is listening).  An address is specified as "host:port" (without the quotes).  
+For local addresses (where host is 'locahost'), just the port can be specified.
+</li>
+<li> requestdelay - number of ms to delay before passing on packets from the debugger
+</li>
+<li> responsedelay - number of ms to delay before passing on packets from the VM
+</li>
+<li> inportproperty - name of the attribute in which the 'inport' value is stored once it is determined
+</li>
+<li> logdir - OPTIONAL directory where the packet stream is logged,
+file called seq.log is created in the 'logdir' directory and all JDWP
+packets are logged in the file. To replay the debugging session start
+the JDWP analyzer manually with 'logdir' as the only argument.
+</li>
+</ul>
+<p>The usual way of using the task is to either explicitly supply the
+'inport' value or to supply the 'inportproperty' value and then
+retrieve the attribute from it, examples of this would be:
+</p><p>
+either:
+</p><pre>    &lt;parallel&gt;
+        &lt;jdwpproxy inport="2222" outaddress="3333" logdir="c:\jdwp_log"/&gt;
+        &lt;sequential&gt;
+            &lt;sleep seconds="1"/&gt;
+            &lt;debug port="2222"/&gt;
+        &lt;/sequential&gt;
+    &lt;/parallel&gt;
+</pre>
+<p>
+or:
+</p><pre>    &lt;parallel&gt;
+        &lt;jdwpproxy inportproperty="jpda.port" outaddress="3333" logdir="c:\jdwp_log"/&gt;
+        &lt;sequential&gt;
+            &lt;sleep seconds="1"/&gt;
+            &lt;debug port="${jpda.port}"/&gt;
+        &lt;/sequential&gt;
+    &lt;/parallel&gt;
+</pre>
+<p>
+</p><p>
+Running as a task from within <a href="http://www.netBeans.org">NetBeans</a>
+has the advantage that it only requires one-time setup of the debugged
+project. Add the task and override the default netbeans debug target -
+for mobility I use this in the build.xml of project. </p><p>
+</p><pre>    &lt;taskdef name="jdwpproxy" classname="com.cotopia.jdwpanalyzer.ant.JDWPTask" classpath="/path/to/JDWPAnalyzer.jar"/&gt;
+
+    &lt;target name="debug" description="Debug project." depends="init,clean,jar"&gt;
+        &lt;delete file="${preprocessed.dir}/.timestamp"/&gt;
+
+        &lt;parallel&gt;
+            &lt;!--start emulator in debug mode, notice that this task must set wtk.debug.port attribute 
+                to the port number on which the emulator VM is listening for debugger connection. 
+                for that reason the next parallel action starts after 5 seconds - to give the emulator
+                enough time to start up --&gt;
+            &lt;nb-run debug="true" debugsuspend="true" debugserver="true" debuggeraddressproperty="wtk.debug.port" platformtype="${platform.type}" 
+                platformhome="${platform.home}" device="${platform.device}" jadfile="${dist.dir}/${dist.jad}" execmethod="${run.method}" 
+                securitydomain="${evaluated.run.security.domain}" commandline="${platform.debugcommandline}"/&gt;
+            &lt;sequential&gt;
+                &lt;sleep seconds="5"/&gt;
+                &lt;parallel&gt;
+                    &lt;!--
+                        start the jdwp analyzer with 2 attributes:
+                        'inportproperty' is the name of the attribute in which the task will store number 
+                                         of the incomming port - the port to which the debugger connects
+                        'outaddress'     is the host:port to which the jdwp analyzer will connect once it receives 
+                                         a connection from the debugger, this port was determined by the nb-run task 
+                                         above
+                    --&gt;
+                    &lt;jdwpproxy inportproperty="jpda.port" outaddress="${wtk.debug.port}"/&gt;
+                    &lt;sequential&gt;
+                        &lt;!--give the jdwpproxy task above a little time to set up the value of the jpda.port--&gt;
+                        &lt;sleep seconds="1"/&gt;
+                        &lt;!--nbdebug task will read the jpda.port property and connect the debugger to the port it
+                            specifies--&gt;
+                        &lt;antcall target="nbdebug"/&gt;
+                    &lt;/sequential&gt;
+                &lt;/parallel&gt;
+            &lt;/sequential&gt;
+        &lt;/parallel&gt;
+    &lt;/target&gt;
+</pre>
+<p>
+</p><p>
+</p>
